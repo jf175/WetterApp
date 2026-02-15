@@ -1,0 +1,89 @@
+index.html
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wetter iPad Mini-App</title>
+<style>
+body { font-family: Arial; text-align:center; background:#2C3E50; color:white; }
+h1 { margin-top:20px; }
+input, button { font-size:18px; margin:5px; padding:10px; }
+#output { margin-top:15px; white-space: pre-line; }
+#forecast { display:flex; justify-content:center; margin-top:15px; flex-wrap:wrap; }
+.tile { width:80px; height:80px; margin:3px; padding:5px; border-radius:8px;
+       background:#3498DB; color:white; display:flex; flex-direction:column;
+       justify-content:center; align-items:center; font-weight:bold; }
+</style>
+</head>
+<body>
+<h1>Wetter App</h1>
+<input id="city" placeholder="Stadt eingeben"><br>
+<button onclick="getWeather()">Wetter</button>
+<button onclick="speak()">🔊 Vorlesen</button>
+<p id="output"></p>
+<div id="forecast"></div>
+
+<script>
+const api="016da0e3710247e3c585d8a6ae75c99a";
+
+function emoji(desc){
+    desc=desc.toLowerCase();
+    if(desc.includes("cloud")) return "☁️";
+    if(desc.includes("rain")||desc.includes("drizzle")) return "🌧️";
+    if(desc.includes("clear")) return "☀️";
+    if(desc.includes("snow")) return "❄️";
+    if(desc.includes("thunder")) return "⛈️";
+    return "⛅️";
+}
+
+function windDir(deg){
+    let dirs=["N","NO","O","SO","S","SW","W","NW"];
+    return dirs[Math.round(deg/45)%8];
+}
+
+function getWeather(){
+    let city=document.getElementById("city").value;
+    if(!city){ alert("Bitte Stadt eingeben!"); return; }
+    fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&lang=de&appid=${api}`)
+    .then(r=>r.json())
+    .then(d=>{
+        let text=`${d.name}
+${d.main.temp.toFixed(1)}°C (Gefühlt ${d.main.feels_like.toFixed(1)}°C)
+${d.weather[0].description} ${emoji(d.weather[0].main)}
+Wind: ${d.wind.speed} m/s ${windDir(d.wind.deg)}
+Regen: ${d.rain ? d.rain["1h"]||0 : 0} mm`;
+        document.getElementById("output").innerText=text;
+        getForecast(d.coord.lat,d.coord.lon);
+    })
+    .catch(err=>{ alert("Fehler beim Abrufen der Daten!"); console.error(err); });
+}
+
+function getForecast(lat, lon){
+    fetch(`https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=minutely,hourly,alerts&units=metric&lang=de&appid=${api}`)
+    .then(r=>r.json())
+    .then(d=>{
+        let fc=document.getElementById("forecast");
+        fc.innerHTML="";
+        for(let i=0;i<7;i++){
+            let day=d.daily[i];
+            let t=day.temp.day;
+            let e=emoji(day.weather[0].main);
+            let tile=document.createElement("div");
+            tile.className="tile";
+            tile.innerHTML=`Tag ${i+1}<br>${e}<br>${t.toFixed(0)}°C`;
+            fc.appendChild(tile);
+        }
+    });
+}
+
+function speak(){
+    let t=document.getElementById("output").innerText;
+    if(!t){ alert("Bitte zuerst Wetter abrufen!"); return; }
+    let msg=new SpeechSynthesisUtterance(t);
+    msg.lang="de-DE";
+    speechSynthesis.speak(msg);
+}
+</script>
+</body>
+</html>
